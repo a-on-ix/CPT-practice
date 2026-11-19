@@ -568,107 +568,6 @@ class GeometryDash:
             return sys.stdin.read(1)
         return ""
 
-    def run_menu(self) -> None:
-        print("\n" + "=" * 48)
-        print("                 GEOMETRY DASH")
-        print("=" * 48)
-        print("1. Cube")
-        print("2. Wave")
-        print("3. Return to lobby")
-        choice = input("Choose a mode: ").strip().lower()
-        if choice in ("1", "cube", "c"):
-            self.run_cube()
-        elif choice in ("2", "wave", "w"):
-            self.run_wave()
-
-    def run_cube(self) -> None:
-        print("\n" + "=" * 48)
-        print("                 GEOMETRY DASH")
-        print("=" * 48)
-        print("Press SPACE to jump. Avoid spikes and reach 100%!")
-        print("Press Q to return to the lobby.")
-        input("Press Enter to begin...")
-
-        try:
-            old_settings = termios.tcgetattr(sys.stdin)
-            tty.setcbreak(sys.stdin.fileno())
-            in_raw_terminal = True
-        except termios.error:
-            old_settings = None
-            in_raw_terminal = False
-
-        obstacles = {
-            13: "spike", 22: "spike", 31: "spike", 38: "double",
-            48: "spike", 57: "double", 68: "spike", 79: "double",
-            88: "spike",
-        }
-
-        try:
-            while True:
-                player_y = 0
-                vertical_speed = 0.0
-                won = False
-                crashed = False
-                print(f"\nAttempt {self.attempt} | Press SPACE")
-
-                for distance in range(101):
-                    key = "" if not in_raw_terminal else self.read_key(0.06)
-                    if key.lower() == "q":
-                        print("\nReturned to the lobby.")
-                        return
-                    if key == " " and player_y == 0:
-                        vertical_speed = 2.2
-
-                    player_y += vertical_speed
-                    vertical_speed -= 0.42
-                    if player_y <= 0:
-                        player_y = 0
-                        vertical_speed = 0
-
-                    jump_height = min(int(round(player_y)), 3)
-                    sys.stdout.write("\033[H\033[2J")
-                    sys.stdout.write(
-                        f"ATTEMPT {self.attempt}  |  PROGRESS {distance}%\n"
-                    )
-                    sys.stdout.write("=" * 40 + "\n")
-                    for row in range(3, -1, -1):
-                        line = list(" " * 40)
-                        if row == jump_height:
-                            line[8] = "▲"
-                        for x in range(40):
-                            world_x = distance - 8 + x
-                            if world_x in obstacles and row == 0:
-                                line[x] = "^"
-                        sys.stdout.write("".join(line) + "\n")
-                    sys.stdout.write("_" * 40 + "\n")
-                    sys.stdout.flush()
-
-                    if distance in obstacles and jump_height == 0:
-                        crashed = True
-                        break
-                    if distance >= 100:
-                        won = True
-                        break
-                    time.sleep(0.06)
-
-                if distance > self.best_progress:
-                    self.best_progress = float(distance)
-                if won:
-                    print("\nLEVEL COMPLETE!")
-                    break
-                print(f"\nCRASHED at {distance}%.")
-                retry = input("Retry or lobby? (r/l): ").strip().lower()
-                if retry in ("l", "lobby", "q"):
-                    break
-                self.attempt += 1
-        finally:
-            if old_settings is not None:
-                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-            sys.stdout.write("\033[H\033[2J")
-            sys.stdout.flush()
-
-        print(f"\nBest progress: {self.best_progress:.0f}%")
-
     def run_wave(self) -> None:
         print("\n" + "=" * 48)
         print("                 GEOMETRY DASH — WAVE")
@@ -924,6 +823,135 @@ class SewerTVFight:
             return -25.0
         return 0.0
 
+    def run_menu(self) -> None:
+        print("\n" + "=" * 48)
+        print("                 GEOMETRY DASH")
+        print("=" * 48)
+        print("1. Cube")
+        print("2. Wave")
+        print("3. Return to lobby")
+        choice = input("Choose a mode: ").strip().lower()
+        if choice in ("1", "cube", "c"):
+            self.run()
+        elif choice in ("2", "wave", "w"):
+            self.run_wave()
+
+    def run(self) -> None:
+        print("\n" + "=" * 48)
+        print("                 GEOMETRY DASH")
+        print("=" * 48)
+        print("Press SPACE to jump. Avoid spikes and reach 100%!")
+        print("Press Q to return to the lobby.")
+        input("Press Enter to begin...")
+
+        try:
+            old_settings = termios.tcgetattr(sys.stdin)
+            tty.setcbreak(sys.stdin.fileno())
+            in_raw_terminal = True
+        except termios.error:
+            old_settings = None
+            in_raw_terminal = False
+
+        try:
+            while True:
+                obstacles = {
+                    13: "spike",
+                    22: "spike",
+                    31: "spike",
+                    38: "double",
+                    48: "spike",
+                    57: "double",
+                    68: "spike",
+                    79: "double",
+                    88: "spike",
+                }
+                player_y = 0
+                vertical_speed = 0.0
+                distance = 0
+                won = False
+                crashed = False
+
+                print(f"\nAttempt {self.attempt} | Press SPACE")
+
+                for distance in range(101):
+                    key = "" if not in_raw_terminal else self.read_key(0.06)
+
+                    if key.lower() == "q":
+                        print("\nReturned to the lobby.")
+                        return
+
+                    if key == " " and player_y == 0:
+                        vertical_speed = 2.2
+
+                    player_y += vertical_speed
+                    vertical_speed -= 0.42
+                    if player_y <= 0:
+                        player_y = 0
+                        vertical_speed = 0
+
+                    view_start = distance - 8
+                    screen = []
+                    for x in range(40):
+                        world_x = view_start + x
+                        obstacle = obstacles.get(world_x)
+                        if obstacle and x < 40:
+                            screen.append("^" if obstacle == "spike" else "^^")
+                        else:
+                            screen.append(" ")
+
+                    player_x = 8
+                    jump_height = min(int(round(player_y)), 3)
+
+                    sys.stdout.write("\033[H\033[2J")
+                    sys.stdout.write(f"ATTEMPT {self.attempt}  |  PROGRESS {distance}%\n")
+                    sys.stdout.write("=" * 40 + "\n")
+                    for row in range(3, -1, -1):
+                        line = list(" " * 40)
+                        if row == jump_height:
+                            line[player_x] = "▲"
+                        for x, tile in enumerate(screen):
+                            if tile in ("^", "^^") and row == 0:
+                                line[x] = "^"
+                        sys.stdout.write("".join(line[:40]) + "\n")
+                    sys.stdout.write("".join("_" for _ in range(40)) + "\n")
+                    sys.stdout.flush()
+
+                    obstacle = obstacles.get(distance)
+                    if obstacle and jump_height == 0:
+                        crashed = True
+                        break
+
+                    if distance >= 100:
+                        won = True
+                        break
+
+                    time.sleep(0.06)
+
+                progress = float(distance)
+                if progress > self.best_progress:
+                    self.best_progress = progress
+                if progress > self.best_attempt:
+                    self.best_attempt = int(progress)
+
+                if won:
+                    print("\nLEVEL COMPLETE!")
+                    print("You reached 100%. Geometry Dash champion!")
+                    break
+
+                if crashed:
+                    print(f"\nCRASHED at {distance}%.")
+                    retry = input("Retry or lobby? (r/l): ").strip().lower()
+                    if retry in ("l", "lobby", "q"):
+                        break
+                    self.attempt += 1
+
+        finally:
+            if old_settings is not None:
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+            sys.stdout.write("\033[H\033[2J")
+            sys.stdout.flush()
+
+        print(f"\nBest progress: {self.best_progress:.0f}%")
 
 
 if __name__ == "__main__":
